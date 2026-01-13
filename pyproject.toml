@@ -3,13 +3,13 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "youtube-search-python"
-version = "1.6.6"
-description = "Search for YouTube videos, channels & playlists & get video information using link WITHOUT YouTube Data API v3"
+name = "youtube-search-next"
+version = "1.0.0"
+description = "A fork of youtube-search-python. Search for YouTube videos, channels & playlists & get video information using link WITHOUT YouTube Data API v3"
 readme = "README.md"
 license = "MIT"
 authors = [
-    { name = "Hitesh Kumar Saini", email = "saini123hitesh@gmail.com" }
+    { name = "Sihu Hwang", email = "empathy_noun.6h@icloud.com" }
 ]
 requires-python = ">=3.6"
 classifiers = [
@@ -22,7 +22,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/alexmercerind/youtube-search-python"
+Homepage = "https://github.com/hwangsihu/youtube-search-next"
 
 [tool.setuptools]
 include-package-data = true

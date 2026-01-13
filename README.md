@@ -1,16 +1,16 @@
-# [youtube-search-python](https://github.com/alexmercerind/youtube-search-python)
+# youtube-search-next
+
+> A fork of [youtube-search-python](https://github.com/alexmercerind/youtube-search-python) by Hitesh Kumar Saini
 
 ##### Search for YouTube videos, channels & playlists. Get video & playlist information using link. Get search suggestions. WITHOUT YouTube Data API v3.
 
-## There are no active project maintainers since 23rd June 2022. Details: [Here](https://github.com/alexmercerind/youtube-search-python/issues/189)
-
-[![PyPI - Version](https://img.shields.io/pypi/v/youtube-search-python?style=for-the-badge)](https://pypi.org/project/youtube-search-python)
-[![PyPI - Downloads](https://img.shields.io/pypi/dm/youtube-search-python?label=DOWNLOADS&style=for-the-badge)](https://pypi.org/project/youtube-search-python)
+[![PyPI - Version](https://img.shields.io/pypi/v/youtube-search-next?style=for-the-badge)](https://pypi.org/project/youtube-search-next)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/youtube-search-next?label=DOWNLOADS&style=for-the-badge)](https://pypi.org/project/youtube-search-next)
 
 ## Installing
 
 ```bash
-pip3 install youtube-search-python
+pip install youtube-search-next
 ```
 
 ## Sync
