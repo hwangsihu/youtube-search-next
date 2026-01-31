@@ -41,14 +41,17 @@ while len(comments.comments["result"]) < 100:
 print("Found all comments")
 
 
-print(Transcript.get("https://www.youtube.com/watch?v=L7kF4MXXCoA"))
-
+transcript_result = Transcript.get("https://www.youtube.com/watch?v=L7kF4MXXCoA")
+print(transcript_result)
 
 url = "https://www.youtube.com/watch?v=-1xu0IP35FI"
 
 transcript_en = Transcript.get(url)
-transcript_2 = Transcript.get(url, transcript_en["languages"][-1]["params"]) # in my case, it'd output Spanish.
-print(transcript_2)
+if transcript_en["languages"]:
+    transcript_2 = Transcript.get(url, transcript_en["languages"][-1]["params"])
+    print(transcript_2)
+else:
+    print("No languages available for translation test")
 
 
 print(Channel.get("UC_aEa8K-EOJ3D6gOs7HcyNg"))
