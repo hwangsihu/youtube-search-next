@@ -20,7 +20,7 @@ print(hashtag.result())
 fetcher = StreamURLFetcher()
 # Use globally accessible videos for testing
 videoA = Video.get("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-videoB = Video.get("https://www.youtube.com/watch?v=jNQXAC9IVRw")  # "Me at the zoo" - first YouTube video
+videoB = Video.get("https://www.youtube.com/watch?v=9bZkp7q19f0")  # PSY - Gangnam Style
 
 singleUrlA = fetcher.get(videoA, 18)  # itag 18 = 360p mp4, more commonly available
 allUrlsB = fetcher.getAll(videoB)
