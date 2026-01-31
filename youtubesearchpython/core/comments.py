@@ -24,6 +24,7 @@ class CommentsCore(RequestCore):
         super().__init__()
         self.commentsComponent = {"result": []}
         self.responseSource = None
+        self.fullResponse = None
         self.videoLink = videoLink
 
     def prepare_continuation_request(self):
@@ -40,7 +41,8 @@ class CommentsCore(RequestCore):
         }
 
     def parse_source(self):
-        self.responseSource = getValue(self.response.json(), [
+        self.fullResponse = self.response.json()
+        self.responseSource = getValue(self.fullResponse, [
             "onResponseReceivedEndpoints",
             0 if self.isNextRequest else 1,
             "appendContinuationItemsAction" if self.isNextRequest else "reloadContinuationItemsCommand",
@@ -119,33 +121,99 @@ class CommentsCore(RequestCore):
         await self.async_make_comment_request()
         self.__getComponents()
 
+    def __buildMutationsMap(self) -> dict:
+        """Build a lookup map of commentEntityPayload by commentId from mutations."""
+        mutations_map = {}
+        if not self.fullResponse:
+            return mutations_map
+        mutations = self.__getValue(self.fullResponse, [
+            "frameworkUpdates", "entityBatchUpdate", "mutations"
+        ])
+        if mutations:
+            for mutation in mutations:
+                payload = self.__getValue(mutation, ["payload", "commentEntityPayload"])
+                if payload:
+                    comment_id = self.__getValue(payload, ["properties", "commentId"])
+                    if comment_id:
+                        mutations_map[comment_id] = payload
+        return mutations_map
+
+    def __parseNewApiComment(self, payload: dict) -> dict:
+        """Parse comment from new commentEntityPayload structure."""
+        properties = payload.get("properties", {})
+        author = payload.get("author", {})
+        toolbar = payload.get("toolbar", {})
+
+        avatar_url = author.get("avatarThumbnailUrl")
+        thumbnails = [{"url": avatar_url}] if avatar_url else []
+
+        return {
+            "id": properties.get("commentId"),
+            "author": {
+                "id": author.get("channelId"),
+                "name": author.get("displayName"),
+                "thumbnails": thumbnails
+            },
+            "content": self.__getValue(properties, ["content", "content"]),
+            "published": properties.get("publishedTime"),
+            "isLiked": False,
+            "authorIsChannelOwner": author.get("isCreator", False),
+            "voteStatus": "INDIFFERENT",
+            "votes": {
+                "simpleText": toolbar.get("likeCountNotliked"),
+                "label": toolbar.get("likeCountA11y")
+            },
+            "replyCount": toolbar.get("replyCount"),
+        }
+
+    def __parseOldApiComment(self, comment: dict) -> dict:
+        """Parse comment from old commentRenderer structure (fallback)."""
+        return {
+            "id": self.__getValue(comment, ["commentId"]),
+            "author": {
+                "id": self.__getValue(comment, ["authorEndpoint", "browseEndpoint", "browseId"]),
+                "name": self.__getValue(comment, ["authorText", "simpleText"]),
+                "thumbnails": self.__getValue(comment, ["authorThumbnail", "thumbnails"])
+            },
+            "content": self.__getValue(comment, ["contentText", "runs", 0, "text"]),
+            "published": self.__getValue(comment, ["publishedTimeText", "runs", 0, "text"]),
+            "isLiked": self.__getValue(comment, ["isLiked"]),
+            "authorIsChannelOwner": self.__getValue(comment, ["authorIsChannelOwner"]),
+            "voteStatus": self.__getValue(comment, ["voteStatus"]),
+            "votes": {
+                "simpleText": self.__getValue(comment, ["voteCount", "simpleText"]),
+                "label": self.__getValue(comment, ["voteCount", "accessibility", "accessibilityData", "label"])
+            },
+            "replyCount": self.__getValue(comment, ["replyCount"]),
+        }
+
     def __getComponents(self) -> None:
         comments = []
-        for comment in self.responseSource:
-            comment = getValue(comment, ["commentThreadRenderer", "comment", "commentRenderer"])
-            #print(json.dumps(comment, indent=4))
-            try:
-                j = {
-                    "id": self.__getValue(comment, ["commentId"]),
-                    "author": {
-                        "id": self.__getValue(comment, ["authorEndpoint", "browseEndpoint", "browseId"]),
-                        "name": self.__getValue(comment, ["authorText", "simpleText"]),
-                        "thumbnails": self.__getValue(comment, ["authorThumbnail", "thumbnails"])
-                    },
-                    "content": self.__getValue(comment, ["contentText", "runs", 0, "text"]),
-                    "published": self.__getValue(comment, ["publishedTimeText", "runs", 0, "text"]),
-                    "isLiked": self.__getValue(comment, ["isLiked"]),
-                    "authorIsChannelOwner": self.__getValue(comment, ["authorIsChannelOwner"]),
-                    "voteStatus": self.__getValue(comment, ["voteStatus"]),
-                    "votes": {
-                        "simpleText": self.__getValue(comment, ["voteCount", "simpleText"]),
-                        "label": self.__getValue(comment, ["voteCount", "accessibility", "accessibilityData", "label"])
-                    },
-                    "replyCount": self.__getValue(comment, ["replyCount"]),
-                }
-                comments.append(j)
-            except:
-                pass
+        mutations_map = self.__buildMutationsMap()
+
+        for item in self.responseSource:
+            comment_thread = self.__getValue(item, ["commentThreadRenderer"])
+            if not comment_thread:
+                continue
+
+            # Try NEW API structure first (commentViewModel + mutations)
+            view_model = self.__getValue(comment_thread, ["commentViewModel", "commentViewModel"])
+            if view_model and mutations_map:
+                comment_id = self.__getValue(view_model, ["commentId"])
+                payload = mutations_map.get(comment_id)
+                if payload:
+                    try:
+                        comments.append(self.__parseNewApiComment(payload))
+                    except:
+                        pass
+            else:
+                # OLD API fallback: commentRenderer structure
+                comment = self.__getValue(comment_thread, ["comment", "commentRenderer"])
+                if comment:
+                    try:
+                        comments.append(self.__parseOldApiComment(comment))
+                    except:
+                        pass
 
         self.commentsComponent["result"].extend(comments)
         self.continuationKey = self.__getValue(self.responseSource, [-1, "continuationItemRenderer", "continuationEndpoint", "continuationCommand", "token"])
