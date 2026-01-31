@@ -1,5 +1,4 @@
-import copy
-import json
+import xml.etree.ElementTree as ET
 from typing import Union, List
 from urllib.parse import urlencode
 
@@ -8,105 +7,172 @@ from youtubesearchpython.core.requests import RequestCore
 from youtubesearchpython.core.componenthandler import getValue, getVideoId
 
 
-
 class TranscriptCore(RequestCore):
     def __init__(self, videoLink: str, key: str):
         super().__init__()
         self.videoLink = videoLink
-        self.key = key
+        self.key = key  # Now used as language code for translation
+        self.captionTracks = []
+        self.translationLanguages = []
 
-    def prepare_params_request(self):
-        self.url = 'https://www.youtube.com/youtubei/v1/next' + "?" + urlencode({
-            'key': searchKey,
-            "prettyPrint": "false"
-        })
-        self.data = copy.deepcopy(requestPayload)
-        self.data["videoId"] = getVideoId(self.videoLink)
-
-    def extract_continuation_key(self, r):
-        j = r.json()
-        panels = getValue(j, ["engagementPanels"])
-        if not panels:
-            raise Exception("Failed to create first request - No engagementPanels is present.")
-        key = ""
-        for panel in panels:
-            panel = panel["engagementPanelSectionListRenderer"]
-            if getValue(panel, ["targetId"]) == "engagement-panel-searchable-transcript":
-                key = getValue(panel, ["content", "continuationItemRenderer", "continuationEndpoint", "getTranscriptEndpoint", "params"])
-        if key == "" or not key:
-            self.result = {"segments": [], "languages": []}
-            return True
-        self.key = key
-        return False
-    
-    def prepare_transcript_request(self):
-        self.url = 'https://www.youtube.com/youtubei/v1/get_transcript' + "?" + urlencode({
-            'key': searchKey,
-            "prettyPrint": "false"
-        })
-        # clientVersion must be newer than in requestPayload
+    def prepare_player_request(self):
+        """Prepare request to player API to get caption tracks."""
+        self.url = 'https://www.youtube.com/youtubei/v1/player'
         self.data = {
-            "context": {
-                "client": {
-                    "clientName": "WEB",
-                    "clientVersion": "2.20220318.00.00",
-                    "newVisitorCookie": True,
-                },
-                "user": {
-                    "lockedSafetyMode": False,
+            'context': {
+                'client': {
+                    'hl': 'en',
+                    'gl': 'US',
+                    'clientName': 'ANDROID',
+                    'clientVersion': '19.09.37',
+                    'androidSdkVersion': 30,
                 }
             },
-            "params": self.key
+            'videoId': getVideoId(self.videoLink)
         }
-    
-    def extract_transcript(self):
-        response = self.data.json()
-        transcripts = getValue(response, ["actions", 0, "updateEngagementPanelAction", "content", "transcriptRenderer", "content", "transcriptSearchPanelRenderer", "body", "transcriptSegmentListRenderer", "initialSegments"])
+
+    def extract_caption_tracks(self, response):
+        """Extract caption tracks and translation languages from player response."""
+        j = response.json()
+        captions = getValue(j, ["captions"])
+        if not captions:
+            self.result = {"segments": [], "languages": []}
+            return True
+
+        renderer = getValue(captions, ["playerCaptionsTracklistRenderer"])
+        if not renderer:
+            self.result = {"segments": [], "languages": []}
+            return True
+
+        self.captionTracks = getValue(renderer, ["captionTracks"]) or []
+        self.translationLanguages = getValue(renderer, ["translationLanguages"]) or []
+
+        if not self.captionTracks:
+            self.result = {"segments": [], "languages": []}
+            return True
+
+        return False
+
+    def get_transcript_url(self):
+        """Get the transcript URL, optionally with translation."""
+        if not self.captionTracks:
+            return None
+
+        base_url = self.captionTracks[0].get('baseUrl', '')
+
+        # If key (language code) is provided, add translation parameter
+        if self.key:
+            base_url += '&tlang=' + self.key
+
+        return base_url
+
+    def parse_transcript_xml(self, xml_content):
+        """Parse timedtext XML to extract segments."""
         segments = []
+        try:
+            root = ET.fromstring(xml_content)
+            for p in root.findall('.//p'):
+                t = int(p.get('t', 0))
+                d = int(p.get('d', 0))
+                # Get text (handle nested <s> tags)
+                text = ''.join(p.itertext())
+                if text.strip():
+                    # Convert ms to time string
+                    start_sec = t // 1000
+                    start_time = f"{start_sec // 60}:{start_sec % 60:02d}"
+                    segments.append({
+                        "startMs": str(t),
+                        "endMs": str(t + d),
+                        "text": text.strip(),
+                        "startTime": start_time
+                    })
+        except ET.ParseError:
+            pass
+        return segments
+
+    def build_languages_list(self):
+        """Build list of available languages."""
         languages = []
-        for segment in transcripts:
-            segment = getValue(segment, ["transcriptSegmentRenderer"])
-            j = {
-                "startMs": getValue(segment, ["startMs"]),
-                "endMs": getValue(segment, ["endMs"]),
-                "text": getValue(segment, ["snippet", "runs", 0, "text"]),
-                "startTime": getValue(segment, ["startTimeText", "simpleText"])
+
+        # Add original caption tracks
+        for track in self.captionTracks:
+            lang_code = track.get('languageCode', '')
+            lang_name = getValue(track, ['name', 'simpleText']) or lang_code
+            languages.append({
+                "params": lang_code,
+                "selected": not self.key or self.key == lang_code,
+                "title": lang_name
+            })
+
+        # Add translation languages
+        for lang in self.translationLanguages:
+            lang_code = lang.get('languageCode', '')
+            lang_name = getValue(lang, ['languageName', 'simpleText']) or lang_code
+            # Skip if already in caption tracks
+            if not any(t.get('languageCode') == lang_code for t in self.captionTracks):
+                languages.append({
+                    "params": lang_code,
+                    "selected": self.key == lang_code,
+                    "title": lang_name + " (auto-translated)"
+                })
+
+        return languages
+
+    def sync_fetch_transcript(self):
+        """Synchronously fetch transcript from URL."""
+        transcript_url = self.get_transcript_url()
+        if not transcript_url:
+            self.result = {"segments": [], "languages": []}
+            return
+
+        # Use httpx directly for GET request
+        import httpx
+        response = httpx.get(transcript_url, timeout=self.timeout if hasattr(self, 'timeout') and self.timeout else 30)
+
+        if response.status_code == 200:
+            segments = self.parse_transcript_xml(response.text)
+            languages = self.build_languages_list()
+            self.result = {
+                "segments": segments,
+                "languages": languages
             }
-            segments.append(j)
-        langs = getValue(response, ["actions", 0, "updateEngagementPanelAction", "content", "transcriptRenderer", "content", "transcriptSearchPanelRenderer", "footer", "transcriptFooterRenderer", "languageMenu", "sortFilterSubMenuRenderer", "subMenuItems"])
-        if langs:
-            for language in langs:
-                j = {
-                    "params": getValue(language, ["continuation", "reloadContinuationData", "continuation"]),
-                    "selected": getValue(language, ["selected"]),
-                    "title": getValue(language, ["title"])
-                }
-                languages.append(j)
-        self.result = {
-            "segments": segments,
-            "languages": languages
-        }
+        else:
+            self.result = {"segments": [], "languages": []}
+
+    async def async_fetch_transcript(self):
+        """Asynchronously fetch transcript from URL."""
+        transcript_url = self.get_transcript_url()
+        if not transcript_url:
+            self.result = {"segments": [], "languages": []}
+            return
+
+        # Use httpx directly for GET request
+        import httpx
+        async with httpx.AsyncClient() as client:
+            response = await client.get(transcript_url, timeout=self.timeout if hasattr(self, 'timeout') and self.timeout else 30)
+
+        if response.status_code == 200:
+            segments = self.parse_transcript_xml(response.text)
+            languages = self.build_languages_list()
+            self.result = {
+                "segments": segments,
+                "languages": languages
+            }
+        else:
+            self.result = {"segments": [], "languages": []}
+
+    def sync_create(self):
+        """Synchronous entry point."""
+        self.prepare_player_request()
+        response = self.syncPostRequest()
+        if self.extract_caption_tracks(response):
+            return
+        self.sync_fetch_transcript()
 
     async def async_create(self):
-        if not self.key:
-            self.prepare_params_request()
-            r = await self.asyncPostRequest()
-            end = self.extract_continuation_key(r)
-            if end:
-                return
-        self.prepare_transcript_request()
-        self.data = await self.asyncPostRequest()
-        self.extract_transcript()
-    
-    def sync_create(self):
-        if not self.key:
-            self.prepare_params_request()
-            r = self.syncPostRequest()
-            end = self.extract_continuation_key(r)
-            if end:
-                return
-        self.prepare_transcript_request()
-        self.data = self.syncPostRequest()
-        self.extract_transcript()
-
-
+        """Asynchronous entry point."""
+        self.prepare_player_request()
+        response = await self.asyncPostRequest()
+        if self.extract_caption_tracks(response):
+            return
+        await self.async_fetch_transcript()
