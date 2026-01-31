@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "youtube-search-next"
-version = "1.0.1"
+version = "1.0.2"
 description = "A fork of youtube-search-python. Search for YouTube videos, channels & playlists & get video information using link WITHOUT YouTube Data API v3"
 readme = "README.md"
 license = "MIT"
