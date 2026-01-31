@@ -20,6 +20,8 @@ def getValue(source: dict, path: List[str]) -> Union[str, int, dict, None]:
 
 
 def getVideoId(videoLink: str) -> str:
+    if not videoLink:
+        return None
     if 'youtu.be' in videoLink:
         if videoLink[-1] == '/':
             return videoLink.split('/')[-2]
