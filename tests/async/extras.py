@@ -22,7 +22,7 @@ async def main():
     fetcher = StreamURLFetcher()
     await fetcher.getJavaScript()
     videoA = await Video.get("https://www.youtube.com/watch?v=aqz-KE-bpKQ")
-    videoB = await Video.get("https://www.youtube.com/watch?v=ZwNxYJfW-eU")
+    videoB = await Video.get("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
     singleUrlA = await fetcher.get(videoA, 22)
     allUrlsB = await fetcher.getAll(videoB)
     print(singleUrlA)

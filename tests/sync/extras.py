@@ -19,7 +19,7 @@ print(hashtag.result())
 
 fetcher = StreamURLFetcher()
 videoA = Video.get("https://www.youtube.com/watch?v=aqz-KE-bpKQ")
-videoB = Video.get("https://www.youtube.com/watch?v=ZwNxYJfW-eU")
+videoB = Video.get("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
 
 singleUrlA = fetcher.get(videoA, 22)
 allUrlsB = fetcher.getAll(videoB)

@@ -28,14 +28,14 @@ class CommentsCore(RequestCore):
 
     def prepare_continuation_request(self):
         self.data = {
-            "context": {"client": {"clientName": "WEB", "clientVersion": "2.20210820.01.00"}},
+            "context": {"client": {"clientName": "WEB", "clientVersion": "2.20260114.08.00"}},
             "videoId": getVideoId(self.videoLink)
         }
         self.url = f"https://www.youtube.com/youtubei/v1/next?key={searchKey}"
 
     def prepare_comments_request(self):
         self.data = {
-            "context": {"client": {"clientName": "WEB", "clientVersion": "2.20210820.01.00"}},
+            "context": {"client": {"clientName": "WEB", "clientVersion": "2.20260114.08.00"}},
             "continuation": self.continuationKey
         }
 
