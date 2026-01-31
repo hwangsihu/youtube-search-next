@@ -337,7 +337,7 @@ class ChannelSearch(ChannelSearchCore):
         }
     '''
 
-    def __init__(self, query: str, browseId: str, language: str = 'en', region: str = 'US', searchPreferences: str = "EgZzZWFyY2g%3D", timeout: int = None):
+    def __init__(self, query: str, browseId: str, language: str = 'en', region: str = 'US', searchPreferences: str = "EgZzZWFyY2jyBgQKAloA", timeout: int = None):
         super().__init__(query, language, region, searchPreferences, browseId, timeout)
         self.sync_create()
 

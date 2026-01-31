@@ -13,42 +13,34 @@ CLIENTS = {
         'context': {
             'client': {
                 'clientName': 'MWEB',
-                'clientVersion': '2.20211109.01.00'
+                'clientVersion': '2.20260115.01.00',
+                'userAgent': 'Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1,gzip(gfe)',
             }
         },
-        'api_key': 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'
     },
     "ANDROID": {
         'context': {
             'client': {
                 'clientName': 'ANDROID',
-                'clientVersion': '16.20'
+                'clientVersion': '21.02.35',
+                'androidSdkVersion': 30,
+                'userAgent': 'com.google.android.youtube/21.02.35 (Linux; U; Android 11) gzip',
+                'osName': 'Android',
+                'osVersion': '11',
             }
         },
-        'api_key': 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'
-    },
-    "ANDROID_EMBED": {
-        'context': {
-            'client': {
-                'clientName': 'ANDROID',
-                'clientVersion': '16.20',
-                'clientScreen': 'EMBED'
-            }
-        },
-        'api_key': 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'
     },
     "TV_EMBED": {
         "context": {
             "client": {
                 "clientName": "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
-                "clientVersion": "2.0"
+                "clientVersion": "2.0",
             },
             "thirdParty": {
                 "embedUrl": "https://www.youtube.com/",
             }
         },
-        'api_key': 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'
-    }
+    },
 }
 
 
@@ -164,8 +156,10 @@ class VideoCore(RequestCore):
                 'category': getValue(responseSource, ['microformat', 'playerMicroformatRenderer', 'category']),
             }
             component['isLiveNow'] = component['isLiveContent'] and component['duration']['secondsText'] == "0"
-            component['link'] = 'https://www.youtube.com/watch?v=' + component['id']
-            component['channel']['link'] = 'https://www.youtube.com/channel/' + component['channel']['id']
+            if component['id']:
+                component['link'] = 'https://www.youtube.com/watch?v=' + component['id']
+            if component['channel']['id']:
+                component['channel']['link'] = 'https://www.youtube.com/channel/' + component['channel']['id']
             videoComponent.update(component)
         if mode in ['getFormats', None]:
             videoComponent.update(

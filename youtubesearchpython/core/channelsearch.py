@@ -36,15 +36,19 @@ class ChannelSearchCore(RequestCore, ComponentHandler):
 
     def _parseChannelSearchSource(self) -> None:
         try:
-            last_tab = self.response["contents"]["twoColumnBrowseResultsRenderer"]["tabs"][-1]
-            if 'expandableTabRenderer' in last_tab:
-                self.response = last_tab["expandableTabRenderer"]["content"]["sectionListRenderer"]["contents"]
-            else:
-                tab_renderer = last_tab["tabRenderer"]
-                if 'content' in tab_renderer:
-                    self.response = tab_renderer["content"]["sectionListRenderer"]["contents"]
-                else:
-                    self.response = []
+            tabs = self.response["contents"]["twoColumnBrowseResultsRenderer"]["tabs"]
+
+            # Find the search tab (expandableTabRenderer with content)
+            # Only expandableTabRenderer contains actual search results
+            for tab in tabs:
+                if 'expandableTabRenderer' in tab:
+                    etr = tab['expandableTabRenderer']
+                    if 'content' in etr:
+                        self.response = etr["content"]["sectionListRenderer"]["contents"]
+                        return
+
+            # No search tab found (e.g., Topic channels don't have search)
+            self.response = []
         except:
             raise Exception('ERROR: Could not parse YouTube response.')
 
