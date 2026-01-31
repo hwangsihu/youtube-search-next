@@ -21,9 +21,10 @@ async def main():
 
     fetcher = StreamURLFetcher()
     await fetcher.getJavaScript()
-    videoA = await Video.get("https://www.youtube.com/watch?v=aqz-KE-bpKQ")
-    videoB = await Video.get("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-    singleUrlA = await fetcher.get(videoA, 22)
+    # Use globally accessible videos for testing
+    videoA = await Video.get("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+    videoB = await Video.get("https://www.youtube.com/watch?v=jNQXAC9IVRw")  # "Me at the zoo"
+    singleUrlA = await fetcher.get(videoA, 18)  # itag 18 = 360p mp4
     allUrlsB = await fetcher.getAll(videoB)
     print(singleUrlA)
     print(allUrlsB)
