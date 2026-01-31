@@ -11,7 +11,7 @@ class TranscriptCore(RequestCore):
     def __init__(self, videoLink: str, key: str):
         super().__init__()
         self.videoLink = videoLink
-        self.key = key  # Now used as language code for translation
+        self.key = key
         self.captionTracks = []
         self.translationLanguages = []
 
